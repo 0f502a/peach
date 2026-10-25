@@ -86,6 +86,57 @@ def _archive_pages(url):
 
 
 class LibraryNfoTests(unittest.TestCase):
+    def test_scanned_strm_metadata_completion_preserves_reviewed_fields(self):
+        from peach.catalog_rules import is_jav_asset
+        from peach.field_owners import USER_MANUAL, write_owned_fields
+
+        media = self.root / 'media'
+        media.mkdir()
+        video = media / 'STARS-944-UC.strm'
+        pointer = 'https://example.com/video\n'
+        video.write_text(pointer, encoding='utf-8')
+        db = fresh_ledger(self.root)
+        config = PeachConfig(self.root, self.root / 'config.toml', present=True,
+                             locations={'local': (str(media) if os.name == 'nt' else r'R:\media',)},
+                             mounts={'local': (str(media),)})
+        self.enterContext(patch('peach.settings_file.active', return_value=config))
+        generated, covers = self.root / 'generated', self.root / 'covers'
+        process_library(config, db, generated, covers, stage='scan')
+        with closing(sqlite3.connect(db)) as connection, connection:
+            asset_id, medium, code = connection.execute('SELECT id,medium,code FROM asset').fetchone()
+            self.assertEqual(medium, 'video')
+            self.assertFalse(code)
+            self.assertFalse(is_jav_asset(code))
+            write_owned_fields(connection, [asset_id], {'catalog_title': '人工标题'}, USER_MANUAL)
+
+        provider = stub_provider()
+        provider.query.return_value = {
+            'id': 'STARS-944', 'title': '来源标题', 'maker': 'SOD',
+            'release_date': '2023-01-01', 'actresses': [{'japanese_name': '测试演员'}],
+        }
+        provider.cover.return_value = False
+        with patch('peach.library_processing._enrich_finished_performers',
+                   return_value={'aliases': 0, 'avatars': 0, 'conflicts': 0, 'failed': 0}):
+            result = process_library(config, db, generated, covers, stage='metadata',
+                                     asset_ids=[asset_id], provider_factory=lambda: provider,
+                                     database=LedgerDatabase(db), route_overrides='censored=r18dev')
+        self.assertEqual(result['status'], 'complete')
+        self.assertEqual(result['identified'], 1)
+        provider.query.assert_called_once()
+        self.assertEqual(provider.query.call_args.args[:2], ('STARS-944', 'r18dev'))
+        with closing(sqlite3.connect(db)) as connection:
+            code, studio, date, title, owners = connection.execute(
+                'SELECT code,studio,release_date,catalog_title,field_owners FROM asset').fetchone()
+        self.assertEqual(code, 'STARS-944')
+        self.assertEqual(owner_of(owners, 'code'), 'scan:filename')
+        self.assertTrue(is_jav_asset(code, studio, date))
+        self.assertEqual(title, '人工标题')
+        self.assertEqual(owner_of(owners, 'catalog_title'), USER_MANUAL)
+        candidates = read_rows(generated / 'library-metadata-field-candidates.csv')
+        self.assertIn('studio', {row['field'] for row in candidates})
+        self.assertIn('performers', {row['field'] for row in candidates})
+        self.assertEqual(video.read_text(encoding='utf-8'), pointer)
+
     def test_task_sidecar_index_does_not_walk_the_folder_for_each_video(self):
         from peach.library_nfo import SidecarIndex
         class CountedFiles(dict):

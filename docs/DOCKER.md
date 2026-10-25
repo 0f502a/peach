@@ -99,8 +99,18 @@ VAAPI 尝试顺序为硬件解码加 `scale_vaapi` / `h264_vaapi`、软件解码
 
 Linux 容器不读取用户电脑上的浏览历史，也不包含交互式浏览器；需要本机浏览器完成验证的来源在此环境不可用。CloudDrive2 的真实账号登录、网盘流量与 NAS 实机挂载需在目标机器验证。
 
+### STRM 资料补全
+
+`.strm` 按视频登记，番号解析支持大小写扩展名与分卷、画质尾缀。扫描只登记文件；既有资产可在页面选择影片后运行「只采集在线资料」，或用 `docker compose exec peach peach process local` 执行该来源的完整资料处理。完整处理还包含扫描与本地媒体处理，首次验证建议选择少量影片。
+
+资料处理从文件名提取番号，使用 `scan:filename` 归属补充空的 `asset.code`，再按 `scrapes_as_jav` 判断是否查询 JAV 来源。已归属创作者、缺少发行证据的普通形态编号，以及已判定为非日本产地的资产仍受现有采集规则约束。浏览分类通过 `is_jav_asset` 要求发行证据，因此仅识别出番号不能证明页面 JAV 数量已经增加。
+
+来源资料经过候选与字段归属规则；人工编辑及复核字段受到保护，有冲突的资料保留为复核候选。STRM 跳过后台视频读取，资料补全不需要访问指针指向的视频。播放时的重定向和地址安全校验沿用现有流程。
+
 ## 镜像发布
 
 构建使用官方 Python `3.14.8-slim-trixie` 与 uv `0.13.1`，依赖由 `uv.lock` 锁定，应用以非 editable 包安装，包含 Web 与迁移资源。镜像以 UID/GID 1000 运行，内置 FFmpeg、FFprobe 和 OpenSSL。构建上下文只允许代码与资源，不包含工作树、媒体、真实 Peach 数据库或凭据。
 
 GitHub Actions 的 `Docker` 工作流先构建并运行临时卷验收，通过后发布。仓库变量 `DOCKERHUB_USERNAME` 和机密 `DOCKERHUB_TOKEN` 用于 Docker Hub 发布；机密只保存在 GitHub，不进入项目文件。未配置发布身份时仍执行构建验收。ARM 镜像需通过同等运行验收后再加入发布。
+
+Fork 的 STRM 测试发布复用此工作流：仅 `0f502a/peach` 的 `fix/strm-release-code` 分支推送或手动运行可发布 `ghcr.io/0f502a/peach:fix-strm` 与 `sha-<完整提交 SHA>`。工作流使用 `GITHUB_TOKEN` 的 `packages: write` 权限，先验收 amd64 容器及 STRM 番号，再推送同一个镜像。Docker Hub 发布限定上游仓库。测试标签可移动；部署留存完整提交标签与镜像 digest，并核对 OCI revision 标签。首次发布后须在 GHCR 包设置核对 NAS 的拉取权限。

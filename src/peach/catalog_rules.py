@@ -269,7 +269,7 @@ _UUID_LIKE = re.compile(
     r"[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}", re.I)
 #: 目录名和文件名都可能带扩展名，图片也算：缩略图 `BNST033(2).jpg` 与正片同番号。
 _ASSET_EXTENSION = re.compile(
-    r"\.(?:mp4|mkv|avi|wmv|ts|mov|m4v|jpg|jpeg|png|webp)$", re.I)
+    r"\.(?:mp4|mkv|avi|wmv|ts|mov|m4v|strm|jpg|jpeg|png|webp)$", re.I)
 #: 文件名尾部的分卷、画质和重复计数；剥掉才能和目录名对齐。
 _FILE_NOISE = re.compile(
     r"(?:[-_. ]?(?:1080p?|720p?|2160p?|4k|fhd|hd|uc|sub|ch|c|u)"
