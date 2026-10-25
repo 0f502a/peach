@@ -153,6 +153,33 @@ class ScrapeGateTests(unittest.TestCase):
 
 
 class ExtractionTests(unittest.TestCase):
+    def test_strm_release_code(self):
+        for name, code in (
+            ('STARS-944-UC.strm', 'STARS-944'),
+            ('MIDA-122.strm', 'MIDA-122'),
+            ('sivr-484-1.strm', 'SIVR-484'),
+            ('VRPRD-192-2.strm', 'VRPRD-192'),
+            ('gvh-538.strm', 'GVH-538'),
+            ('STARS-944-UC.STRM', 'STARS-944'),
+            ('VRPRD-192-2.StRm', 'VRPRD-192'),
+            ('STARS-944-UC.mp4', 'STARS-944'),
+            ('MIDA-122.mkv', 'MIDA-122'),
+            ('STARS-944-UC', 'STARS-944'),
+        ):
+            with self.subTest(name=name):
+                self.assertEqual(release_code_from_filename(name), code)
+
+    def test_strm_non_release_names(self):
+        for name in ('holiday.strm', 'movie.STRM', 'IMG_20260101.strm', 'HHD800.strm'):
+            with self.subTest(name=name):
+                self.assertIsNone(release_code_from_filename(name))
+
+    def test_directory_release_codes(self):
+        for name, code in (('MIDA-122', 'MIDA-122'), ('STARS-944', 'STARS-944'),
+                           ('071213_625', '071213_625'), ('holiday', None)):
+            with self.subTest(name=name):
+                self.assertEqual(release_code_from_text(name), code)
+
     def test_named_volume_suffix_preserves_the_release_code(self):
         for suffix in ('CD1', 'disc02', 'Part-3', 'DVD4', 'Vol_5'):
             with self.subTest(suffix=suffix):
